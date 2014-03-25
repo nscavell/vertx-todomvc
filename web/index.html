@@ -1,0 +1,242 @@
+<!doctype html>
+<!--
+
+This a real-time/reactive TODO app based off http://todomvc.com running on Vert.x. It uses handlebars to generate
+the UI, and the Vert.x EventBus to bridge the UI to the server.
+
+-->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Vert.x • TodoMVC</title>
+  <link rel="stylesheet" href="css/base.css">
+</head>
+<body>
+<section id="todoapp">
+  <!-- todoapp-template -->
+</section>
+<footer id="info">
+  <p>Double-click to edit a todo</p>
+
+  <p>Created by Nick Scavelli - <a href="http://github.com/nscavell">GitHub</a>&nbsp;&nbsp;<a
+    href="http://twitter.com/nickscavelli">Twitter</a></p>
+</footer>
+</body>
+
+<script src='js/jquery-1.7.1.min.js'></script>
+<script src='js/sockjs-min-0.3.4.js'></script>
+<script src='js/handlebars-v1.3.0.js'></script>
+<script src='js/vertxbus.js'></script>
+<script src='js/vertxmongo.js'></script>
+
+<script type="text/javascript">
+  // Need to add this first so we can ref it in our templates below
+  var Todos = new Mongo.Collection("todos");
+
+  // Subscribe to events
+  Todos.subscribe(function (msg) {
+    if (msg.action === 'save') {
+      var todo = msg.document;
+      var index = indexOf(todo, context.todos);
+      if (index == -1) {
+        context.todos.push(todo);
+      } else {
+        context.todos[index] = todo;
+      }
+      refresh(true);
+    } else if (msg.action === 'delete') {
+      if (msg._id) { // Individual doc deleted
+        var index = indexOf({_id: msg._id}, context.todos);
+        if (index != -1) {
+          context.todos.splice(index, 1);
+          refresh();
+        }
+      } else { // Everything was deleted
+        context.todos = [];
+        refresh(true);
+      }
+    }
+  });
+
+  // Initialize the context for our templates. This will be populated later.
+  var context = {
+    todos: [],
+    todos_not_completed: todos_not_completed_helper,
+    todos_completed: todos_completed_helper
+  };
+
+  // Refreshes our UI
+  function refresh(focus) {
+    $('#todoapp').html(template(context));
+    var input = $('#new-todo');
+    $(input).on('keyup', newTodo);
+    $(input).on('blur', newTodo);
+    if (focus) {
+      $(input).focusWithoutScrolling();
+    }
+  }
+
+  // Save new todo
+  function newTodo(evt) {
+    var save = false;
+    if (evt.type === 'keyup') {
+      if (evt.keyCode == 13) {
+        save = true;
+      } else if (evt.keyCode == 27) {
+        evt.target.value = '';
+      }
+    } else if (evt.type === 'blur') {
+      save = true;
+    }
+    if (save && evt.target.value != '') {
+      Todos.save({title: evt.target.value, completed: false});
+    }
+  }
+
+  // Toggle edit mode, bind listeners
+  function editTodo(label, id) {
+    var li = $(label).closest('li');
+    var update = function (evt) {
+      var save = false;
+      if (evt.type === 'keyup') {
+        if (evt.keyCode == 13) {
+          save = true;
+        } else if (evt.keyCode == 27) {
+          refresh();
+        }
+      } else if (evt.type === 'blur') {
+        save = true;
+      }
+      if (save && evt.target.value != '') {
+        var todo = context.todos[indexOf({_id: id}, context.todos)];
+        if (todo.title != evt.target.value) {
+          todo.title = evt.target.value;
+          Todos.save(todo);
+        } else {
+          refresh();
+        }
+      }
+    }
+
+    $(li).removeClass().addClass("editing");
+    var input = $('input.edit', li).first()[0];
+    $(input).focus();
+    $(input).on('keyup', update);
+    $(input).on('blur', update);
+  }
+
+  function toggleComplete(checked, id) {
+    var todo = context.todos[indexOf({_id: id}, context.todos)];
+    todo.completed = checked;
+    Todos.save(todo);
+  }
+
+  //------------------ Handlebar function helpers ------------------//
+  function todos_not_completed_helper() {
+    var count = 0;
+    for (var i = 0; i < context.todos.length; i++) {
+      if (!context.todos[i].completed) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  function todos_completed_helper() {
+    var count = 0;
+    for (var i = 0; i < context.todos.length; i++) {
+      if (context.todos[i].completed) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  //------------------ Misc/Utility ------------------//
+  function indexOf(todo, todos) {
+    for (var i = 0; i < todos.length; i++) {
+      if (todos[i]._id === todo._id) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  $.fn.focusWithoutScrolling = function () {
+    var x = window.scrollX, y = window.scrollY;
+    this.focus();
+    window.scrollTo(x, y);
+    return this; //chainability
+
+  };
+</script>
+
+<script id="todoapp-template" type="text/x-handlebars-template">
+  <header id="header">
+    <h1>todos</h1>
+    <input id="new-todo" placeholder="What needs to be done?">
+  </header>
+  {{#if todos}}
+  {{> main}}
+  {{> footer}}
+  {{/if}}
+</script>
+
+<script id="main-template" type="text/x-handlebars-template">
+  <section id="main">
+    <input id="toggle-all" type="checkbox">
+    <label for="toggle-all">Mark all as complete</label>
+    <ul id="todo-list">
+      {{#each todos}}
+      {{> todo}}
+      {{/each}}
+    </ul>
+  </section>
+</script>
+
+<!-- Would be nice to decorate these after/while it's rendered so we don't clutter UI -->
+<script id="todo-template" type="text/x-handlebars-template">
+  <li class="{{#if completed}}completed{{/if}}{{#if editing}}editing{{/if}}">
+    <div class="view">
+      <input onclick="toggleComplete(this.checked, '{{_id}}');" class="toggle" type="checkbox" {{#if
+      completed}}checked="checked"{{/if}}>
+      <label ondblclick="editTodo(this, '{{_id}}');">{{title}}</label>
+      <button class="destroy" onclick="Todos.delete({ _id: '{{_id}}' });"></button>
+    </div>
+    <input class="edit" value="{{title}}">
+  </li>
+</script>
+
+<script id="footer-template" type="text/x-handlebars-template">
+  <footer id="footer">
+    <span id="todo-count"><strong>{{todos_not_completed}}</strong> item left</span>
+    <ul id="filters">
+      <li>
+        <a class="selected" href="#/">All</a>
+      </li>
+      <li>
+        <a href="#/active">Active</a>
+      </li>
+      <li>
+        <a href="#/completed">Completed</a>
+      </li>
+    </ul>
+    <button id="clear-completed">Clear completed ({{todos_completed}})</button>
+  </footer>
+</script>
+
+<script type="text/javascript">
+  // Pre-Compile our handlebars template and register partials
+  var source = $('#todoapp-template').html();
+  var template = Handlebars.compile(source);
+  Handlebars.registerPartial("main", $('#main-template').html());
+  Handlebars.registerPartial("footer", $('#footer-template').html());
+  Handlebars.registerPartial("todo", $('#todo-template').html());
+
+  // Fetch the todos
+  Todos.find({}, function (err, todos) {
+    context.todos = todos;
+    refresh(true);
+  });
+</script>
+</html>
