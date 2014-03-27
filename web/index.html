@@ -62,7 +62,8 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
   var context = {
     todos: [],
     todos_not_completed: todos_not_completed_helper,
-    todos_completed: todos_completed_helper
+    todos_completed: todos_completed_helper,
+    all_todos_completed: all_todos_completed_helper
   };
 
   // Refreshes our UI
@@ -131,6 +132,21 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
     Todos.save(todo);
   }
 
+  function toggleAllComplete(checked) {
+    for (var i=0; i<context.todos.length; i++) {
+      context.todos[i].completed = checked;
+      Todos.save(context.todos[i]);
+    }
+  }
+
+  function clearCompleted() {
+    for (var i=0; i<context.todos.length; i++) {
+      if (context.todos[i].completed) {
+        Todos.delete({_id: context.todos[i]._id});
+      }
+    }
+  }
+
   //------------------ Handlebar function helpers ------------------//
   function todos_not_completed_helper() {
     var count = 0;
@@ -152,6 +168,15 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
     return count;
   }
 
+  function all_todos_completed_helper() {
+    for (var i = 0; i < context.todos.length; i++) {
+      if (!context.todos[i].completed) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   //------------------ Misc/Utility ------------------//
   function indexOf(todo, todos) {
     for (var i = 0; i < todos.length; i++) {
@@ -166,8 +191,7 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
     var x = window.scrollX, y = window.scrollY;
     this.focus();
     window.scrollTo(x, y);
-    return this; //chainability
-
+    return this;
   };
 </script>
 
@@ -184,7 +208,7 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
 
 <script id="main-template" type="text/x-handlebars-template">
   <section id="main">
-    <input id="toggle-all" type="checkbox">
+    <input id="toggle-all" type="checkbox" onclick="toggleAllComplete(this.checked);" {{#if all_todos_completed}}checked="checked"{{/if}}>
     <label for="toggle-all">Mark all as complete</label>
     <ul id="todo-list">
       {{#each todos}}
@@ -198,8 +222,7 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
 <script id="todo-template" type="text/x-handlebars-template">
   <li class="{{#if completed}}completed{{/if}}{{#if editing}}editing{{/if}}">
     <div class="view">
-      <input onclick="toggleComplete(this.checked, '{{_id}}');" class="toggle" type="checkbox" {{#if
-      completed}}checked="checked"{{/if}}>
+      <input onclick="toggleComplete(this.checked, '{{_id}}');" class="toggle" type="checkbox" {{#if completed}}checked="checked"{{/if}}>
       <label ondblclick="editTodo(this, '{{_id}}');">{{title}}</label>
       <button class="destroy" onclick="Todos.delete({ _id: '{{_id}}' });"></button>
     </div>
@@ -221,7 +244,7 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
         <a href="#/completed">Completed</a>
       </li>
     </ul>
-    <button id="clear-completed">Clear completed ({{todos_completed}})</button>
+    <button id="clear-completed" onclick="clearCompleted();">Clear completed ({{todos_completed}})</button>
   </footer>
 </script>
 

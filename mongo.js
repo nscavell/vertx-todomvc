@@ -7,11 +7,9 @@ var mongoConfig = {
   password: container.env['OPENSHIFT_MONGODB_DB_PASSWORD'] || null
 }
 
-var max_documents = 25;
-
 // Deploy the mongo-persistor module
 container.deployModule('io.vertx~mod-mongo-persistor~2.1.0', mongoConfig, function() {
-  // Delete all todo's when app starts
+  // Delete all data when app starts
   //deleteAll();
 });
 

@@ -10,7 +10,7 @@ var mongo_proxy = 'vertx.mongo.proxy';          // Our mongo 'proxy' which will 
 var mongo_broadcast = 'vertx.mongo.broadcast';  // Our client address to broadcast changes to
 var max_documents = 25;
 
-// Setup mongo & init data
+// Setup mongo
 load('mongo.js');
 
 // Setup our mongo_proxy event bus handler to broadcast changes real-time
