@@ -7,6 +7,7 @@ var Mongo = {};
     self.queue = [];
     self.address = (options && options.address) ? options.address : "vertx.mongo.proxy";
     self.broadcast = (options && options.broadcast) ? options.broadcast : "vertx.mongo.broadcast";
+    self.excludes = (options && options.excludes) ? options.excludes : [];
     // Hack to know if we're running on openshift so websockets work
     var port = window.location.port;
     if (window.location.hostname.indexOf("rhcloud.com") != -1) {
@@ -45,8 +46,15 @@ var Mongo = {};
     });
   };
 
-  Mongo.Collection.prototype.save = function(document, callback) {
+  Mongo.Collection.prototype.save = function(data, callback) {
     var name = this.name;
+    var excludes = this.excludes;
+    var document = {};
+    Object.keys(data).forEach(function (key) {
+      if (excludes.indexOf(key) == -1) {
+        document[key] = data[key];
+      }
+    });
     this._send({action: 'save', collection: name, document: document}, function(reply) {
       if (callback) {
         if (reply.status === 'ok') {

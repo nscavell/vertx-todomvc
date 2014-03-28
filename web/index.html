@@ -30,8 +30,8 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
 <script src='js/vertxmongo.js'></script>
 
 <script type="text/javascript">
-  // Need to add this first so we can ref it in our templates below
-  var Todos = new Mongo.Collection("todos");
+  // Connect to the Todos collection in Mongo
+  var Todos = new Mongo.Collection("todos", {excludes: ['viewable']});
 
   // Subscribe to events
   Todos.subscribe(function (msg) {
@@ -61,13 +61,29 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
   // Initialize the context for our templates. This will be populated later.
   var context = {
     todos: [],
+    route: 'all',
     todos_not_completed: todos_not_completed_helper,
     todos_completed: todos_completed_helper,
     all_todos_completed: all_todos_completed_helper
   };
 
+  // Set our (all, active, completed) from the location in our
+  if (window.location.hash) {
+    context.route = window.location.hash.substring(2);
+  }
+
   // Refreshes our UI
   function refresh(focus) {
+    for (var i=0; i<context.todos.length; i++) {
+      var todo = context.todos[i];
+      if (context.route === 'all') {
+        todo.viewable = true;
+      } else if (context.route === 'active') {
+        todo.viewable = !todo.completed;
+      } else if (context.route === 'completed') {
+        todo.viewable = todo.completed;
+      }
+    }
     $('#todoapp').html(template(context));
     var input = $('#new-todo');
     $(input).on('keyup', newTodo);
@@ -147,6 +163,11 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
     }
   }
 
+  function route(route) {
+    context.route = route;
+    refresh(false);
+  }
+
   //------------------ Handlebar function helpers ------------------//
   function todos_not_completed_helper() {
     var count = 0;
@@ -211,7 +232,7 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
     <input id="toggle-all" type="checkbox" onclick="toggleAllComplete(this.checked);" {{#if all_todos_completed}}checked="checked"{{/if}}>
     <label for="toggle-all">Mark all as complete</label>
     <ul id="todo-list">
-      {{#each todos}}
+      {{#each todos filter="viewable"}}
       {{> todo}}
       {{/each}}
     </ul>
@@ -235,13 +256,13 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
     <span id="todo-count"><strong>{{todos_not_completed}}</strong> item left</span>
     <ul id="filters">
       <li>
-        <a class="selected" href="#/">All</a>
+        <a href="#/" onclick="route('all'); return true;" {{#if_eq route "all"}}class="selected"{{/if_eq}}>All</a>
       </li>
       <li>
-        <a href="#/active">Active</a>
+        <a href="#/active" onclick="route('active'); return true;" {{#if_eq route "active"}}class="selected"{{/if_eq}}>Active</a>
       </li>
       <li>
-        <a href="#/completed">Completed</a>
+        <a href="#/completed" onclick="route('completed'); return true;" {{#if_eq route "completed"}}class="selected"{{/if_eq}}>Completed</a>
       </li>
     </ul>
     <button id="clear-completed" onclick="clearCompleted();">Clear completed ({{todos_completed}})</button>
@@ -255,6 +276,19 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
   Handlebars.registerPartial("main", $('#main-template').html());
   Handlebars.registerPartial("footer", $('#footer-template').html());
   Handlebars.registerPartial("todo", $('#todo-template').html());
+  Handlebars.registerHelper("if_eq", function(x, y, options) {
+    return (x === y) ? options.fn(this) : options.inverse(this);
+  });
+  Handlebars.registerHelper("each", function(context, options) {
+    var ret = "";
+    for(var i=0, j=context.length; i<j; i++) {
+      var filter = options.hash.filter;
+      if (!filter || (filter && context[i][filter])) {
+        ret = ret + options.fn(context[i]);
+      }
+    }
+    return ret;
+  });
 
   // Fetch the todos
   Todos.find({}, function (err, todos) {
