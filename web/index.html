@@ -69,7 +69,12 @@ the UI, and the Vert.x EventBus to bridge the UI to the server.
 
   // Set our (all, active, completed) from the location in our
   if (window.location.hash) {
-    context.route = window.location.hash.substring(2);
+    var r = window.location.hash.substring(2);
+    if (r === 'active') {
+      context.route = r;
+    } else if (r === 'completed') {
+      context.route = r;
+    }
   }
 
   // Refreshes our UI
