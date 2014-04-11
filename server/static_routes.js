@@ -4,10 +4,11 @@ var sendFileHandler = function(req) {
   if (req.path() === '/') {
     file = '/index.html';
   }
-  req.response.sendFile("web" + file);
+  req.response.sendFile('.' + file);
 };
 
 rm.get('/', sendFileHandler);
+rm.get('/bower_components/.*', sendFileHandler);
 rm.get('/js/.*', sendFileHandler);
 rm.get('/css/.*', sendFileHandler);
 rm.get('/img/.*', sendFileHandler);

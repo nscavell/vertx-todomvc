@@ -11,7 +11,7 @@ var mongo_broadcast = 'vertx.mongo.broadcast';  // Our client address to broadca
 var max_documents = 25;
 
 // Setup mongo
-load('mongo.js');
+load('server/mongo.js');
 
 // Setup our mongo_proxy event bus handler to broadcast changes real-time
 bus.registerHandler(mongo_proxy, function(msg, replyTo) {
@@ -68,10 +68,7 @@ var stringify = function(json) {
 var rm = new http.RouteMatcher();
 
 // Load our static route handlers
-load('static_routes.js');
-
-// Load the todo route handlers
-//load('todo_routes.js');
+load('server/static_routes.js');
 
 // Handle anything that doesn't match our registered routes
 rm.noMatch(function(req) {
@@ -88,7 +85,7 @@ var server = http.createHttpServer();
 server.requestHandler(rm);
 
 // Create sockjs server from http server
-load('sockjs_server.js');
+load('server/sockjs_server.js');
 
 // Finally start the server
 server.listen(port, host, function(err) {

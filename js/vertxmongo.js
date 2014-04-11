@@ -1,4 +1,7 @@
-var Mongo = {};
+
+if (typeof vertx.Mongo === 'undefined') vertx.Mongo = {};
+
+var Mongo = vertx.Mongo;
 (function() {
 
   Mongo.Collection = function(name, options) {
@@ -118,5 +121,4 @@ var Mongo = {};
         throw new Error("Unknown event bus readyState " + this.bus.readyState());
     }
   };
-
 })(Mongo);
